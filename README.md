@@ -25,11 +25,3 @@ uv run uvicorn idea_jam.main:app --reload
 ```bash
 uv run pytest
 ```
-
-## Seed
-
-```bash
-uv run python -m idea_jam.seed
-```
-
-Note: the seed script is not yet implemented; it comes in a later task.

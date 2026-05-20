@@ -1,7 +1,7 @@
 [project]
 name = "claw-idea-jam"
 version = "0.1.0"
-description = "Add your description here"
+description = "Workshop app for the OpenClaw & Beyond talk — idea submission, clustering, and per-attendee Claw packages."
 readme = "README.md"
 authors = [
     { name = "Jack Arthur Harrhy", email = "me@jackharrhy.com" }

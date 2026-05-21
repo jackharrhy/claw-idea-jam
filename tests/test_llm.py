@@ -22,10 +22,3 @@ async def test_fake_cluster_partitions_all():
     themes = await fake.cluster(ideas)
     flat = [iid for t in themes for iid in t["idea_ids"]]
     assert sorted(flat) == sorted([i["id"] for i in ideas])
-
-
-@pytest.mark.asyncio
-async def test_fake_starter_prompt():
-    fake = FakeLLMClient()
-    out = await fake.starter_prompt("automate my email")
-    assert "automate my email" in out

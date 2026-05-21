@@ -16,7 +16,6 @@ def _load_prompt(name: str) -> str:
 
 class LLMClient(Protocol):
     async def cluster(self, ideas: list[dict]) -> list[dict]: ...
-    async def starter_prompt(self, idea_text: str) -> str: ...
 
 
 class AnthropicClient:
@@ -51,16 +50,6 @@ class AnthropicClient:
             raise ValueError(f"unassigned ideas: {missing}")
         return themes
 
-    async def starter_prompt(self, idea_text: str) -> str:
-        template = _load_prompt("starter.md")
-        prompt = template.replace("{{ idea_text }}", idea_text)
-        msg = self._client.messages.create(
-            model=self._model,
-            max_tokens=512,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return msg.content[0].text.strip()  # type: ignore[union-attr]
-
 
 def _extract_json(text: str) -> dict:
     """Extract the first JSON object from a model response."""
@@ -72,7 +61,7 @@ def _extract_json(text: str) -> dict:
 
 
 class FakeLLMClient:
-    """Test/dev double. Cluster returns naive partition; starter returns stub."""
+    """Test/dev double. Cluster returns naive partition."""
 
     async def cluster(self, ideas: list[dict]) -> list[dict]:
         if not ideas:
@@ -83,6 +72,3 @@ class FakeLLMClient:
             {"name": "alpha", "idea_ids": [i["id"] for i in ideas[:mid]]},
             {"name": "beta", "idea_ids": [i["id"] for i in ideas[mid:]]},
         ]
-
-    async def starter_prompt(self, idea_text: str) -> str:
-        return f"Try this with Claude Code: {idea_text}. Start by mocking a small example."

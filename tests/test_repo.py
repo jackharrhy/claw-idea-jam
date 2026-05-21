@@ -75,17 +75,6 @@ def test_toggle_star(repo):
     assert repo.toggle_star(i["id"]) is True
 
 
-def test_event_state_singleton_and_end(repo):
-    s = repo.get_event_state()
-    assert s["ended"] is False
-    assert s["packages_status"] == "not_started"
-    repo.end_event()
-    repo.set_packages_status("generating")
-    s2 = repo.get_event_state()
-    assert s2["ended"] is True
-    assert s2["packages_status"] == "generating"
-
-
 def test_delete_idea(repo):
     p = repo.create_participant()
     i = repo.add_idea(p["id"], "to delete")
@@ -99,3 +88,19 @@ def test_update_idea_text(repo):
     repo.update_idea_text(i["id"], "revised")
     fetched = repo.get_idea(i["id"])
     assert fetched["text"] == "revised"
+
+
+def test_create_participant_with_name_and_email(repo):
+    p = repo.create_participant_with_name("alice", email="alice@example.com")
+    fetched = repo.get_participant(p["id"])
+    assert fetched["display_name"] == "alice"
+    assert fetched["email"] == "alice@example.com"
+
+
+def test_set_participant_email(repo):
+    p = repo.create_participant_with_name("bob")
+    assert p["email"] is None
+    repo.set_participant_email(p["id"], "bob@example.com")
+    assert repo.get_participant(p["id"])["email"] == "bob@example.com"
+    repo.set_participant_email(p["id"], None)
+    assert repo.get_participant(p["id"])["email"] is None

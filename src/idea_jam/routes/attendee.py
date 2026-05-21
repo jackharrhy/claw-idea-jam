@@ -45,20 +45,35 @@ async def home(request: Request):
             {},
         )
     ideas = repo.list_ideas_for_participant(p["id"])
-    event_state = repo.get_event_state()
     return request.app.state.templates.TemplateResponse(
         request,
         "attendee_home.html",
-        {"participant": p, "ideas": ideas, "event_ended": event_state["ended"]},
+        {"participant": p, "ideas": ideas},
     )
 
 
+def _clean_email(email: str | None) -> str | None:
+    if email is None:
+        return None
+    s = email.strip()[:254]
+    if not s:
+        return None
+    if "@" not in s:
+        raise HTTPException(status_code=400, detail="invalid email")
+    return s
+
+
 @router.post("/me/claim-name")
-async def claim_name(request: Request, display_name: str = Form(...)):
+async def claim_name(
+    request: Request,
+    display_name: str = Form(...),
+    email: str | None = Form(None),
+):
     name = display_name.strip()[:64]
     if not name:
         name = generate_display_name()
-    p = repo.create_participant_with_name(name)
+    clean_email = _clean_email(email)
+    p = repo.create_participant_with_name(name, clean_email)
     resp = RedirectResponse("/", status_code=303)
     _set_participant_cookie(resp, p)
     return resp
@@ -70,6 +85,17 @@ async def random_name(request: Request):
     resp = RedirectResponse("/", status_code=303)
     _set_participant_cookie(resp, p)
     return resp
+
+
+@router.post("/me/set-email", response_class=HTMLResponse)
+async def set_email(request: Request, email: str | None = Form(None)):
+    pid = request.cookies.get(COOKIE_NAME)
+    if not pid or not repo.get_participant(pid):
+        raise HTTPException(404)
+    clean_email = _clean_email(email)
+    repo.set_participant_email(pid, clean_email)
+    from fastapi.responses import HTMLResponse as HR
+    return HR(clean_email or "")
 
 
 @router.post("/ideas", response_class=HTMLResponse)

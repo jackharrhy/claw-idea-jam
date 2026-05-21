@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from sqlalchemy import select, update, delete, func
-from idea_jam.db import engine, participants, themes, ideas, event_state
+from idea_jam.db import engine, participants, themes, ideas
 from idea_jam.names import generate_display_name, new_uuid
 
 
@@ -10,19 +10,28 @@ def _now() -> datetime:
 
 # Participants
 
-def create_participant() -> dict:
+def create_participant(email: str | None = None) -> dict:
     pid = new_uuid()
     name = generate_display_name()
     with engine.begin() as conn:
-        conn.execute(participants.insert().values(id=pid, display_name=name, created_at=_now()))
-    return {"id": pid, "display_name": name}
+        conn.execute(participants.insert().values(
+            id=pid, display_name=name, email=email, created_at=_now()
+        ))
+    return {"id": pid, "display_name": name, "email": email}
 
 
-def create_participant_with_name(name: str) -> dict:
+def create_participant_with_name(name: str, email: str | None = None) -> dict:
     pid = new_uuid()
     with engine.begin() as conn:
-        conn.execute(participants.insert().values(id=pid, display_name=name, created_at=_now()))
-    return {"id": pid, "display_name": name}
+        conn.execute(participants.insert().values(
+            id=pid, display_name=name, email=email, created_at=_now()
+        ))
+    return {"id": pid, "display_name": name, "email": email}
+
+
+def set_participant_email(pid: str, email: str | None) -> None:
+    with engine.begin() as conn:
+        conn.execute(update(participants).where(participants.c.id == pid).values(email=email))
 
 
 def get_participant(pid: str) -> dict | None:
@@ -50,7 +59,7 @@ def add_idea(participant_id: str, text: str) -> dict:
         conn.execute(ideas.insert().values(
             id=iid, participant_id=participant_id, text=text,
             theme_id=None, starred=True, position_in_theme=None,
-            starter_prompt=None, created_at=_now(),
+            created_at=_now(),
         ))
         row = conn.execute(ideas.select().where(ideas.c.id == iid)).first()
     return dict(row._mapping)
@@ -111,11 +120,6 @@ def toggle_star(idea_id: str) -> bool:
     return new_value
 
 
-def set_starter_prompt(idea_id: str, prompt: str) -> None:
-    with engine.begin() as conn:
-        conn.execute(update(ideas).where(ideas.c.id == idea_id).values(starter_prompt=prompt))
-
-
 # Themes
 
 def create_theme(name: str) -> dict:
@@ -149,20 +153,4 @@ def delete_theme(tid: str) -> None:
         conn.execute(delete(themes).where(themes.c.id == tid))
 
 
-# Event state
 
-def get_event_state() -> dict:
-    with engine.begin() as conn:
-        row = conn.execute(event_state.select().where(event_state.c.id == 1)).first()
-    return dict(row._mapping)
-
-
-def end_event() -> None:
-    with engine.begin() as conn:
-        conn.execute(update(event_state).where(event_state.c.id == 1).values(ended=True))
-
-
-def set_packages_status(status: str) -> None:
-    assert status in ("not_started", "generating", "complete")
-    with engine.begin() as conn:
-        conn.execute(update(event_state).where(event_state.c.id == 1).values(packages_status=status))

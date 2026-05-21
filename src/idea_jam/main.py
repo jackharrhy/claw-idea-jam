@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 
 from idea_jam.db import init_db
 from idea_jam.llm import AnthropicClient, FakeLLMClient
-from idea_jam.routes import attendee, moderator, package
+from idea_jam.routes import attendee, moderator
 
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
@@ -36,7 +36,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Idea Jam", lifespan=lifespan)
 app.include_router(attendee.router)
 app.include_router(moderator.router)
-app.include_router(package.router)
 
 
 @app.get("/healthz")

@@ -1,7 +1,7 @@
 import os
 from sqlalchemy import (
     create_engine, MetaData, Table, Column, String, Integer, Boolean,
-    DateTime, ForeignKey, Text, event, text,
+    DateTime, ForeignKey, event,
 )
 from sqlalchemy.engine import Engine
 
@@ -29,6 +29,7 @@ participants = Table(
     "participants", metadata,
     Column("id", String, primary_key=True),
     Column("display_name", String, nullable=False),
+    Column("email", String, nullable=True),
     Column("created_at", DateTime, nullable=False),
 )
 
@@ -48,21 +49,9 @@ ideas = Table(
     Column("theme_id", String, ForeignKey("themes.id"), nullable=True),
     Column("starred", Boolean, nullable=False, default=False),
     Column("position_in_theme", Integer, nullable=True),
-    Column("starter_prompt", Text, nullable=True),
     Column("created_at", DateTime, nullable=False),
-)
-
-event_state = Table(
-    "event_state", metadata,
-    Column("id", Integer, primary_key=True),
-    Column("ended", Boolean, nullable=False, default=False),
-    Column("packages_status", String, nullable=False, default="not_started"),
 )
 
 
 def init_db() -> None:
     metadata.create_all(engine)
-    with engine.begin() as conn:
-        existing = conn.execute(text("SELECT id FROM event_state WHERE id=1")).first()
-        if existing is None:
-            conn.execute(event_state.insert().values(id=1, ended=False, packages_status="not_started"))

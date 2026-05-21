@@ -14,15 +14,14 @@ def fresh_db(tmp_path, monkeypatch):
 
 
 def test_init_db_creates_tables(fresh_db):
+    # The participants table should exist and be empty.
     with fresh_db.engine.begin() as conn:
-        rows = conn.execute(fresh_db.event_state.select()).all()
-    assert len(rows) == 1
-    assert rows[0].id == 1
-    assert rows[0].ended is False
+        rows = conn.execute(fresh_db.participants.select()).all()
+    assert rows == []
 
 
 def test_init_db_idempotent(fresh_db):
-    fresh_db.init_db()  # second call must not error or duplicate event_state
+    fresh_db.init_db()  # second call must not error
     with fresh_db.engine.begin() as conn:
-        rows = conn.execute(fresh_db.event_state.select()).all()
-    assert len(rows) == 1
+        rows = conn.execute(fresh_db.participants.select()).all()
+    assert rows == []

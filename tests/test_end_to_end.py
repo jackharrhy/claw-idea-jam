@@ -11,13 +11,12 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("IDEA_JAM_FAKE_LLM", "1")
     # Reload modules so env vars apply
     import idea_jam.db, idea_jam.repo
-    import idea_jam.routes.attendee, idea_jam.routes.moderator, idea_jam.routes.package
+    import idea_jam.routes.attendee, idea_jam.routes.moderator
     import idea_jam.main
     importlib.reload(idea_jam.db)
     importlib.reload(idea_jam.repo)
     importlib.reload(idea_jam.routes.attendee)
     importlib.reload(idea_jam.routes.moderator)
-    importlib.reload(idea_jam.routes.package)
     importlib.reload(idea_jam.main)
     with TestClient(idea_jam.main.app) as c:
         yield c
@@ -70,26 +69,6 @@ def test_full_flow(client):
     # Reveal view loads
     r = client.get("/m/reveal")
     assert r.status_code == 200
-
-    # End event
-    r = client.post("/m/end-event")
-    assert r.status_code == 200
-
-    # Wait for background package generation to complete
-    import time
-    from idea_jam import repo
-    for _ in range(50):
-        time.sleep(0.1)
-        s = repo.get_event_state()
-        if s["packages_status"] == "complete":
-            break
-    else:
-        pytest.fail("packages did not complete within 5 seconds")
-
-    # Package retrieval as attendee 2 (current cookies)
-    r = client.get("/package")
-    assert r.status_code == 200
-    assert "watch my deploys and alert me" in r.text
 
 
 def test_first_visit_shows_name_entry(client):
@@ -147,6 +126,34 @@ def test_edit_own_idea(client):
     assert r.status_code == 200
     updated = repo.get_idea(iid)
     assert updated["text"] == "revised text"
+
+
+def test_claim_name_with_email(client):
+    client.cookies.clear()
+    r = client.post(
+        "/me/claim-name",
+        data={"display_name": "carol", "email": "carol@example.com"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    pid = client.cookies.get("ij_pid")
+    from idea_jam import repo
+    p = repo.get_participant(pid)
+    assert p["email"] == "carol@example.com"
+
+
+def test_claim_name_without_email(client):
+    client.cookies.clear()
+    r = client.post(
+        "/me/claim-name",
+        data={"display_name": "dave"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    pid = client.cookies.get("ij_pid")
+    from idea_jam import repo
+    p = repo.get_participant(pid)
+    assert p["email"] is None
 
 
 def test_cannot_delete_others_ideas(client):

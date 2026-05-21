@@ -1,4 +1,3 @@
-import asyncio
 import json
 
 from fastapi import APIRouter, Body, Form, Path, Request
@@ -151,33 +150,6 @@ async def auto_cluster(request: Request):
             repo.move_idea(iid, t["id"], pos)
     await bus.publish("themes_changed", {})
     return {"ok": True, "themes_created": created}
-
-
-@router.post("/end-event")
-async def end_event(request: Request):
-    require_moderator(request)
-    repo.end_event()
-    repo.set_packages_status("generating")
-    await bus.publish("event_ended", {})
-    asyncio.create_task(_generate_packages(request.app.state.llm))
-    return {"ok": True}
-
-
-async def _generate_packages(llm) -> None:
-    all_ideas = repo.list_all_ideas()
-    sem = asyncio.Semaphore(5)
-
-    async def one(idea):
-        async with sem:
-            try:
-                prompt = await llm.starter_prompt(idea["text"])
-                repo.set_starter_prompt(idea["id"], prompt)
-            except Exception as e:
-                repo.set_starter_prompt(idea["id"], f"(generation failed: {e})")
-
-    await asyncio.gather(*(one(i) for i in all_ideas))
-    repo.set_packages_status("complete")
-    await bus.publish("packages_complete", {})
 
 
 @router.get("/reveal", response_class=HTMLResponse)

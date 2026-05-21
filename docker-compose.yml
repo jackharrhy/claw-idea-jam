@@ -1,0 +1,21 @@
+services:
+  app:
+    build: .
+    image: claw-idea-jam:latest
+    container_name: claw-idea-jam
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY in .env}
+      MODERATOR_TOKEN: ${MODERATOR_TOKEN:?set MODERATOR_TOKEN in .env}
+    volumes:
+      - claw-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/healthz').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  claw-data:

@@ -35,3 +35,13 @@ uv run python -m idea_jam.seed
 ```
 
 The seed uses a fixed random seed so re-runs produce the same data. Delete `idea_jam.db` first if you want a clean slate.
+
+## Running with Docker
+
+Requires `.env` with `ANTHROPIC_API_KEY` and `MODERATOR_TOKEN` set.
+
+```sh
+docker compose up --build
+```
+
+The app listens on http://localhost:8000. The SQLite DB lives in the `claw-data` named volume; remove it with `docker compose down -v`.

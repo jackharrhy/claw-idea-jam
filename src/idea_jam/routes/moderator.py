@@ -170,3 +170,92 @@ async def reveal(request: Request):
         "moderator_reveal.html",
         {"themes": by_theme, "themes_json": json.dumps(by_theme)},
     )
+
+
+@router.get("/export", response_class=HTMLResponse)
+async def export(request: Request):
+    require_moderator(request)
+    from sqlalchemy import select
+    from idea_jam.db import engine, participants, ideas as ideas_t, themes as themes_t
+
+    # Join everything in one query so we have name + email per idea + theme name.
+    stmt = (
+        select(
+            ideas_t.c.id,
+            ideas_t.c.text,
+            ideas_t.c.starred,
+            ideas_t.c.created_at,
+            ideas_t.c.theme_id,
+            themes_t.c.name.label("theme_name"),
+            themes_t.c.position.label("theme_position"),
+            participants.c.id.label("participant_id"),
+            participants.c.display_name,
+            participants.c.email,
+        )
+        .select_from(
+            ideas_t.join(participants, ideas_t.c.participant_id == participants.c.id)
+            .outerjoin(themes_t, ideas_t.c.theme_id == themes_t.c.id)
+        )
+        .order_by(themes_t.c.position.asc().nulls_last(), ideas_t.c.created_at.asc())
+    )
+    with engine.begin() as conn:
+        rows = [dict(r._mapping) for r in conn.execute(stmt).all()]
+
+    # Group by theme. None bucket goes last.
+    grouped: dict[str | None, list[dict]] = {}
+    theme_order: list[str | None] = []
+    for r in rows:
+        key = r["theme_id"]
+        if key not in grouped:
+            grouped[key] = []
+            theme_order.append(key)
+        grouped[key].append(r)
+
+    # Always show "Unclustered" last, even if it has the lowest theme_position (which is None).
+    if None in theme_order:
+        theme_order = [k for k in theme_order if k is not None] + [None]
+
+    # Build markdown.
+    from datetime import datetime, timezone
+    lines: list[str] = []
+    lines.append("# idea jam export")
+    lines.append("")
+    lines.append(f"_exported {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}_")
+    lines.append("")
+
+    for theme_id in theme_order:
+        theme_rows = grouped[theme_id]
+        theme_name = theme_rows[0]["theme_name"] if theme_id is not None else "Unclustered"
+        lines.append(f"## {theme_name}")
+        lines.append("")
+        for r in theme_rows:
+            mark = "★ " if r["starred"] else ""
+            text = r["text"].replace("\n", " ").strip()
+            who = r["display_name"]
+            email = f" <{r['email']}>" if r["email"] else ""
+            lines.append(f"- {mark}{text} — _{who}{email}_")
+        lines.append("")
+
+    # Participants section with emails for follow-up.
+    p_stmt = (
+        select(participants.c.display_name, participants.c.email)
+        .where(participants.c.email.is_not(None))
+        .order_by(participants.c.display_name)
+    )
+    with engine.begin() as conn:
+        with_emails = [dict(r._mapping) for r in conn.execute(p_stmt).all()]
+
+    if with_emails:
+        lines.append("## Participants with emails (for follow-up)")
+        lines.append("")
+        for p in with_emails:
+            lines.append(f"- {p['display_name']} — {p['email']}")
+        lines.append("")
+
+    markdown = "\n".join(lines)
+
+    return request.app.state.templates.TemplateResponse(
+        request,
+        "moderator_export.html",
+        {"markdown": markdown},
+    )

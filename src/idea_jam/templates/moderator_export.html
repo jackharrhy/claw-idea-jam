@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}export · idea jam{% endblock %}
+{% block body %}
+<main class="max-w-4xl mx-auto px-6 py-10">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-semibold">export</h1>
+    <div class="flex gap-2">
+      <button id="copy-md" class="px-3 py-1 text-sm bg-neutral-900 text-white rounded">copy</button>
+      <a href="/m/dashboard" class="px-3 py-1 text-sm border border-neutral-300 rounded">← dashboard</a>
+    </div>
+  </div>
+
+  <p class="text-sm text-neutral-500 mb-4">
+    Markdown dump of everything in the jam — themes, ideas, who submitted what, and the emails of anyone who left one.
+  </p>
+
+  <textarea id="export-md" readonly rows="30"
+    class="w-full border border-neutral-300 rounded p-3 text-xs font-mono bg-neutral-50 focus:outline-none focus:ring focus:ring-neutral-400">{{ markdown }}</textarea>
+</main>
+<script>
+  document.getElementById("copy-md").addEventListener("click", async () => {
+    const ta = document.getElementById("export-md");
+    try {
+      await navigator.clipboard.writeText(ta.value);
+    } catch {
+      ta.select();
+      document.execCommand("copy");
+    }
+    const btn = document.getElementById("copy-md");
+    const original = btn.textContent;
+    btn.textContent = "copied!";
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  });
+</script>
+{% endblock %}

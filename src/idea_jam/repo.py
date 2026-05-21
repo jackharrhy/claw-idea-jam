@@ -49,7 +49,7 @@ def add_idea(participant_id: str, text: str) -> dict:
     with engine.begin() as conn:
         conn.execute(ideas.insert().values(
             id=iid, participant_id=participant_id, text=text,
-            theme_id=None, starred=False, position_in_theme=None,
+            theme_id=None, starred=True, position_in_theme=None,
             starter_prompt=None, created_at=_now(),
         ))
         row = conn.execute(ideas.select().where(ideas.c.id == iid)).first()

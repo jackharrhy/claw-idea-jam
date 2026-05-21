@@ -70,8 +70,9 @@ def test_delete_theme_unsets_ideas(repo):
 def test_toggle_star(repo):
     p = repo.create_participant()
     i = repo.add_idea(p["id"], "x")
-    assert repo.toggle_star(i["id"]) is True
+    # New ideas are auto-starred; first toggle un-stars, second re-stars.
     assert repo.toggle_star(i["id"]) is False
+    assert repo.toggle_star(i["id"]) is True
 
 
 def test_event_state_singleton_and_end(repo):

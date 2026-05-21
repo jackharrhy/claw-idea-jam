@@ -233,7 +233,7 @@ async def export(request: Request):
             text = r["text"].replace("\n", " ").strip()
             who = r["display_name"]
             email = f" <{r['email']}>" if r["email"] else ""
-            lines.append(f"- {mark}{text} — _{who}{email}_")
+            lines.append(f"- {mark}{text} _({who}{email})_")
         lines.append("")
 
     # Participants section with emails for follow-up.
@@ -249,7 +249,7 @@ async def export(request: Request):
         lines.append("## Participants with emails (for follow-up)")
         lines.append("")
         for p in with_emails:
-            lines.append(f"- {p['display_name']} — {p['email']}")
+            lines.append(f"- {p['display_name']} <{p['email']}>")
         lines.append("")
 
     markdown = "\n".join(lines)

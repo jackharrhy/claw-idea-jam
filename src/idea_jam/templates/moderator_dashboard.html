@@ -5,6 +5,8 @@
   <h1 class="font-semibold">idea jam · moderator</h1>
   <span class="text-sm text-neutral-500"><span id="idea-count">{{ ideas|length }}</span> submissions</span>
   <div class="ml-auto flex gap-2">
+    <button onclick="createTheme()"
+            class="px-3 py-1 text-sm border border-neutral-300 rounded">+ new theme</button>
     <button hx-post="/m/auto-cluster" hx-swap="none"
             class="px-3 py-1 text-sm bg-neutral-900 text-white rounded">auto-cluster</button>
     <a href="/m/reveal" target="_blank"
@@ -46,6 +48,19 @@
 </main>
 
 <script>
+async function createTheme() {
+  const name = window.prompt("theme name?");
+  if (!name) return;
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  await fetch("/m/themes", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({name: trimmed}),
+  });
+  // SSE will broadcast themes_changed and trigger a body refresh.
+}
+
 (function () {
   // Wire SortableJS to all sortable lists for drag-and-drop.
   function wireSortables() {

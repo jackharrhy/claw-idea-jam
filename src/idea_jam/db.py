@@ -1,5 +1,4 @@
 import os
-from datetime import datetime
 from sqlalchemy import (
     create_engine, MetaData, Table, Column, String, Integer, Boolean,
     DateTime, ForeignKey, Text, event, text,

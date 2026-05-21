@@ -3,14 +3,14 @@
 {% block body %}
 <main class="max-w-2xl mx-auto px-6 py-10">
   <h1 class="text-3xl font-semibold mb-2">welcome to the jam</h1>
-  <p class="text-neutral-600 mb-8">pick a name to get started.</p>
+  <p class="text-neutral-600 mb-8">pick a name.</p>
 
   <form action="/me/claim-name" method="post" class="space-y-3 mb-6">
     <input type="text" name="display_name" required maxlength="64" autofocus
            class="w-full border border-neutral-300 rounded p-3 text-base focus:outline-none focus:ring focus:ring-neutral-400"
            placeholder="your name (or anything you'd like to be called)" />
     <input type="email" name="email" maxlength="254"
-           placeholder="email (optional — for follow-up only)"
+           placeholder="email (optional)"
            class="w-full border border-neutral-300 rounded p-3 text-base focus:outline-none focus:ring focus:ring-neutral-400" />
     <button class="w-full px-4 py-2 bg-neutral-900 text-white rounded">use this name</button>
   </form>

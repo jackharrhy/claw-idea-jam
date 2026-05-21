@@ -15,12 +15,27 @@
   function render() {
     const t = themes[idx];
     const root = document.getElementById("reveal-root");
-    root.innerHTML = `
-      <h1 class="text-6xl font-semibold mb-12 text-center">${t.name}</h1>
-      <ul class="space-y-4 text-2xl">
-        ${t.ideas.map(i => `<li><span>${i.text}</span> <span class="text-neutral-400 text-base ml-2">${i.display_name}</span></li>`).join("")}
-      </ul>
-    `;
+    root.replaceChildren();
+
+    const h1 = document.createElement("h1");
+    h1.className = "text-6xl font-semibold mb-12 text-center";
+    h1.textContent = t.name;
+    root.appendChild(h1);
+
+    const ul = document.createElement("ul");
+    ul.className = "space-y-4 text-2xl";
+    for (const i of t.ideas) {
+      const li = document.createElement("li");
+      const ideaSpan = document.createElement("span");
+      ideaSpan.textContent = i.text;
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "text-neutral-400 text-base ml-2";
+      nameSpan.textContent = i.display_name;
+      li.append(ideaSpan, " ", nameSpan);
+      ul.appendChild(li);
+    }
+    root.appendChild(ul);
+
     document.getElementById("page-indicator").textContent = `${idx + 1}/${themes.length}`;
   }
   document.addEventListener("keydown", (e) => {

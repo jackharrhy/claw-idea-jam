@@ -1,7 +1,7 @@
 import asyncio
 import json
 
-from fastapi import APIRouter, Body, Path, Request
+from fastapi import APIRouter, Body, Form, Path, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from sse_starlette.sse import EventSourceResponse
 
@@ -45,12 +45,18 @@ async def create_theme(request: Request, token: str = Path(...), payload: dict =
 
 
 @router.patch("/themes/{theme_id}")
-async def patch_theme(request: Request, token: str = Path(...), theme_id: str = Path(...), payload: dict = Body(...)):
+async def patch_theme(
+    request: Request,
+    token: str = Path(...),
+    theme_id: str = Path(...),
+    name: str | None = Form(None),
+    position: int | None = Form(None),
+):
     _auth(token)
-    if "name" in payload:
-        repo.rename_theme(theme_id, payload["name"])
-    if "position" in payload:
-        repo.reorder_theme(theme_id, int(payload["position"]))
+    if name is not None:
+        repo.rename_theme(theme_id, name)
+    if position is not None:
+        repo.reorder_theme(theme_id, position)
     await bus.publish("themes_changed", {})
     return {"ok": True}
 
@@ -89,7 +95,13 @@ async def auto_cluster(request: Request, token: str = Path(...)):
     unclustered = [i for i in all_ideas if i["theme_id"] is None]
     if not unclustered:
         return {"ok": True, "themes_created": 0}
-    proposed = await llm.cluster(unclustered)
+    try:
+        proposed = await llm.cluster(unclustered)
+    except Exception as e:
+        return JSONResponse(
+            {"ok": False, "error": f"clustering failed: {type(e).__name__}: {e}"},
+            status_code=422,
+        )
     created = 0
     for theme in proposed:
         t = repo.create_theme(theme["name"])

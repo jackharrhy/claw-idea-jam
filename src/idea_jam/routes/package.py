@@ -24,5 +24,5 @@ async def package(request: Request):
     return request.app.state.templates.TemplateResponse(
         request,
         "package.html",
-        {"participant": p, "ideas": ideas, "ideas_json": json.dumps(ideas)},
+        {"participant": p, "ideas": ideas, "ideas_json": json.dumps(ideas, default=str)},
     )

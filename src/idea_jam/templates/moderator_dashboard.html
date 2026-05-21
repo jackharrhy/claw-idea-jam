@@ -13,6 +13,9 @@
        class="px-3 py-1 text-sm border border-neutral-300 rounded">reveal &rarr;</a>
     <a href="/m/export" target="_blank"
        class="px-3 py-1 text-sm border border-neutral-300 rounded">export &rarr;</a>
+    <button hx-post="/m/wipe" hx-swap="none"
+            hx-confirm="wipe everything? participants, ideas, themes. cannot be undone."
+            class="px-3 py-1 text-sm border border-rose-300 text-rose-700 rounded">wipe</button>
     <form action="/m/logout" method="post" class="inline">
       <button class="px-3 py-1 text-sm border border-neutral-300 rounded">log out</button>
     </form>

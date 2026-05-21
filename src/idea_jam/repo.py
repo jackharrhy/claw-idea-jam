@@ -153,4 +153,12 @@ def delete_theme(tid: str) -> None:
         conn.execute(delete(themes).where(themes.c.id == tid))
 
 
+def wipe_all() -> None:
+    """Truncate ideas, themes, and participants. Schema stays."""
+    with engine.begin() as conn:
+        conn.execute(delete(ideas))
+        conn.execute(delete(themes))
+        conn.execute(delete(participants))
+
+
 

@@ -152,6 +152,14 @@ async def auto_cluster(request: Request):
     return {"ok": True, "themes_created": created}
 
 
+@router.post("/wipe")
+async def wipe(request: Request):
+    require_moderator(request)
+    repo.wipe_all()
+    await bus.publish("themes_changed", {})
+    return {"ok": True}
+
+
 @router.get("/reveal", response_class=HTMLResponse)
 async def reveal(request: Request):
     require_moderator(request)

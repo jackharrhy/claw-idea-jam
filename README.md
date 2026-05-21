@@ -25,3 +25,13 @@ uv run uvicorn idea_jam.main:app --reload
 ```bash
 uv run pytest
 ```
+
+## Seed (for rehearsal)
+
+Populate the DB with 20 fake participants and ~1-3 ideas each, deterministically:
+
+```sh
+uv run python -m idea_jam.seed
+```
+
+The seed uses a fixed random seed so re-runs produce the same data. Delete `idea_jam.db` first if you want a clean slate.

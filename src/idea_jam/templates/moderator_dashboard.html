@@ -5,12 +5,15 @@
   <h1 class="font-semibold">idea jam · moderator</h1>
   <span class="text-sm text-neutral-500"><span id="idea-count">{{ ideas|length }}</span> submissions</span>
   <div class="ml-auto flex gap-2">
-    <button hx-post="/m/{{ token }}/auto-cluster" hx-swap="none"
+    <button hx-post="/m/auto-cluster" hx-swap="none"
             class="px-3 py-1 text-sm bg-neutral-900 text-white rounded">auto-cluster</button>
-    <a href="/m/{{ token }}/reveal" target="_blank"
+    <a href="/m/reveal" target="_blank"
        class="px-3 py-1 text-sm border border-neutral-300 rounded">reveal &rarr;</a>
-    <button hx-post="/m/{{ token }}/end-event" hx-swap="none" hx-confirm="End event and generate packages?"
+    <button hx-post="/m/end-event" hx-swap="none" hx-confirm="End event and generate packages?"
             class="px-3 py-1 text-sm border border-rose-300 text-rose-700 rounded">end event</button>
+    <form action="/m/logout" method="post" class="inline">
+      <button class="px-3 py-1 text-sm border border-neutral-300 rounded">log out</button>
+    </form>
   </div>
 </header>
 
@@ -55,7 +58,7 @@
           const themeId = evt.to.dataset.themeId || "";
           const ideaId = evt.item.dataset.ideaId;
           const position = evt.newIndex;
-          fetch(`/m/{{ token }}/ideas/${ideaId}/move`, {
+          fetch(`/m/ideas/${ideaId}/move`, {
             method: "POST",
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify({theme_id: themeId || null, position}),
@@ -68,7 +71,7 @@
   document.addEventListener("htmx:afterSwap", wireSortables);
 
   // SSE
-  const es = new EventSource(`/m/{{ token }}/events`);
+  const es = new EventSource(`/m/events`);
   es.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.type === "new_idea" || msg.type === "themes_changed") {

@@ -2,43 +2,85 @@ import asyncio
 import json
 
 from fastapi import APIRouter, Body, Form, Path, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sse_starlette.sse import EventSourceResponse
 
 from idea_jam import repo
-from idea_jam.auth import require_moderator
+from idea_jam.auth import (
+    MOD_COOKIE_NAME,
+    MOD_COOKIE_MAX_AGE,
+    check_moderator_password,
+    require_moderator,
+)
 from idea_jam.events import bus, event_stream
 
-router = APIRouter(prefix="/m/{token}")
-
-
-def _auth(token: str) -> None:
-    require_moderator(token)
+router = APIRouter(prefix="/m")
 
 
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request, token: str = Path(...)):
-    _auth(token)
+async def login_page(request: Request):
+    # If already authenticated, send to dashboard.
+    cookie_val = request.cookies.get(MOD_COOKIE_NAME)
+    if cookie_val and check_moderator_password(cookie_val):
+        return RedirectResponse("/m/dashboard", status_code=303)
+    return request.app.state.templates.TemplateResponse(
+        request,
+        "moderator_login.html",
+        {},
+    )
+
+
+@router.post("/login")
+async def login(request: Request, token: str = Form(...)):
+    if not check_moderator_password(token):
+        page = request.app.state.templates.TemplateResponse(
+            request,
+            "moderator_login.html",
+            {"error": "invalid token"},
+            status_code=200,
+        )
+        return page
+    resp = RedirectResponse("/m/dashboard", status_code=303)
+    resp.set_cookie(
+        key=MOD_COOKIE_NAME,
+        value=token,
+        httponly=True,
+        samesite="lax",
+        max_age=MOD_COOKIE_MAX_AGE,
+    )
+    return resp
+
+
+@router.post("/logout")
+async def logout(request: Request):
+    resp = RedirectResponse("/m", status_code=303)
+    resp.delete_cookie(MOD_COOKIE_NAME)
+    return resp
+
+
+@router.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request):
+    require_moderator(request)
     ideas = repo.list_ideas_with_participant_name()
     themes = repo.list_themes()
     return request.app.state.templates.TemplateResponse(
         request,
         "moderator_dashboard.html",
-        {"ideas": ideas, "themes": themes, "token": token},
+        {"ideas": ideas, "themes": themes},
     )
 
 
 @router.get("/events")
-async def events(request: Request, token: str = Path(...)):
-    _auth(token)
+async def events(request: Request):
+    require_moderator(request)
     q = bus.subscribe()
     return EventSourceResponse(event_stream(q))
 
 
 @router.post("/themes")
-async def create_theme(request: Request, token: str = Path(...), payload: dict = Body(...)):
-    _auth(token)
+async def create_theme(request: Request, payload: dict = Body(...)):
+    require_moderator(request)
     t = repo.create_theme(payload["name"])
     await bus.publish("themes_changed", {})
     return JSONResponse(t)
@@ -47,12 +89,11 @@ async def create_theme(request: Request, token: str = Path(...), payload: dict =
 @router.patch("/themes/{theme_id}")
 async def patch_theme(
     request: Request,
-    token: str = Path(...),
     theme_id: str = Path(...),
     name: str | None = Form(None),
     position: int | None = Form(None),
 ):
-    _auth(token)
+    require_moderator(request)
     if name is not None:
         repo.rename_theme(theme_id, name)
     if position is not None:
@@ -62,16 +103,16 @@ async def patch_theme(
 
 
 @router.delete("/themes/{theme_id}")
-async def delete_theme(request: Request, token: str = Path(...), theme_id: str = Path(...)):
-    _auth(token)
+async def delete_theme(request: Request, theme_id: str = Path(...)):
+    require_moderator(request)
     repo.delete_theme(theme_id)
     await bus.publish("themes_changed", {})
     return {"ok": True}
 
 
 @router.post("/ideas/{idea_id}/move")
-async def move_idea(request: Request, token: str = Path(...), idea_id: str = Path(...), payload: dict = Body(...)):
-    _auth(token)
+async def move_idea(request: Request, idea_id: str = Path(...), payload: dict = Body(...)):
+    require_moderator(request)
     theme_id = payload.get("theme_id") or None
     pos = payload.get("position")
     repo.move_idea(idea_id, theme_id, int(pos) if pos is not None else None)
@@ -80,16 +121,16 @@ async def move_idea(request: Request, token: str = Path(...), idea_id: str = Pat
 
 
 @router.post("/ideas/{idea_id}/star")
-async def star(request: Request, token: str = Path(...), idea_id: str = Path(...)):
-    _auth(token)
+async def star(request: Request, idea_id: str = Path(...)):
+    require_moderator(request)
     new = repo.toggle_star(idea_id)
     await bus.publish("themes_changed", {})
     return {"starred": new}
 
 
 @router.post("/auto-cluster")
-async def auto_cluster(request: Request, token: str = Path(...)):
-    _auth(token)
+async def auto_cluster(request: Request):
+    require_moderator(request)
     llm = request.app.state.llm
     all_ideas = repo.list_all_ideas()
     unclustered = [i for i in all_ideas if i["theme_id"] is None]
@@ -113,8 +154,8 @@ async def auto_cluster(request: Request, token: str = Path(...)):
 
 
 @router.post("/end-event")
-async def end_event(request: Request, token: str = Path(...)):
-    _auth(token)
+async def end_event(request: Request):
+    require_moderator(request)
     repo.end_event()
     repo.set_packages_status("generating")
     await bus.publish("event_ended", {})
@@ -140,8 +181,8 @@ async def _generate_packages(llm) -> None:
 
 
 @router.get("/reveal", response_class=HTMLResponse)
-async def reveal(request: Request, token: str = Path(...)):
-    _auth(token)
+async def reveal(request: Request):
+    require_moderator(request)
     themes = repo.list_themes()
     all_ideas = repo.list_ideas_with_participant_name()
     by_theme = []
@@ -155,5 +196,5 @@ async def reveal(request: Request, token: str = Path(...)):
     return request.app.state.templates.TemplateResponse(
         request,
         "moderator_reveal.html",
-        {"themes": by_theme, "themes_json": json.dumps(by_theme), "token": token},
+        {"themes": by_theme, "themes_json": json.dumps(by_theme)},
     )

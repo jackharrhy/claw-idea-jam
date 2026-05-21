@@ -43,27 +43,36 @@ def test_full_flow(client):
     r = client.post("/ideas", data={"text": "watch my deploys and alert me"})
     assert r.status_code == 200
 
-    # Moderator dashboard reachable with right token
-    r = client.get("/m/test-token")
+    # Moderator dashboard requires login - 404 without cookie
+    r = client.get("/m/dashboard")
+    assert r.status_code == 404
+
+    # Wrong token re-renders the login page (200 + error)
+    r = client.post("/m/login", data={"token": "wrong-token"}, follow_redirects=False)
+    assert r.status_code == 200
+    assert "invalid" in r.text.lower() or "moderator" in r.text.lower()
+
+    # Log in with the right token (sets ij_mod cookie)
+    r = client.post("/m/login", data={"token": "test-token"}, follow_redirects=False)
+    assert r.status_code == 303
+
+    # Moderator dashboard reachable with cookie
+    r = client.get("/m/dashboard")
     assert r.status_code == 200
     assert "automate my email triage" in r.text
 
-    # Wrong token returns 404 (don't leak existence)
-    r = client.get("/m/wrong-token")
-    assert r.status_code == 404
-
     # Auto-cluster
-    r = client.post("/m/test-token/auto-cluster")
+    r = client.post("/m/auto-cluster")
     assert r.status_code == 200
     body = r.json()
     assert body["themes_created"] >= 1
 
     # Reveal view loads
-    r = client.get("/m/test-token/reveal")
+    r = client.get("/m/reveal")
     assert r.status_code == 200
 
     # End event
-    r = client.post("/m/test-token/end-event")
+    r = client.post("/m/end-event")
     assert r.status_code == 200
 
     # Wait for background package generation to complete

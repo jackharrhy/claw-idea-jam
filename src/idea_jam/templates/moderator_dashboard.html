@@ -74,7 +74,7 @@
   const es = new EventSource(`/m/events`);
   es.onmessage = (e) => {
     const msg = JSON.parse(e.data);
-    if (msg.type === "new_idea" || msg.type === "themes_changed") {
+    if (msg.type === "new_idea" || msg.type === "themes_changed" || msg.type === "idea_edited" || msg.type === "idea_deleted") {
       // Easy mode: just refetch the page body via HTMX
       htmx.ajax("GET", window.location.pathname + "?partial=1", {target: "body", swap: "innerHTML"});
     }

@@ -12,7 +12,7 @@
   <h1 class="text-3xl font-semibold mb-2">what would you point an agent at?</h1>
   <p class="text-neutral-600 mb-8">In your life or work. Anything. Be specific.</p>
 
-  <form hx-post="/ideas" hx-target="#your-ideas" hx-swap="outerHTML" class="space-y-3">
+  <form hx-post="/ideas" hx-target="#your-ideas" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) this.reset()" class="space-y-3">
     <textarea name="text" rows="3" maxlength="500" required
       class="w-full border border-neutral-300 rounded p-3 text-base focus:outline-none focus:ring focus:ring-neutral-400"
       placeholder="An agent that..."></textarea>

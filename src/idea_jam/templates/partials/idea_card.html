@@ -1,0 +1,10 @@
+<div class="p-2 border border-neutral-200 rounded text-sm bg-white" data-idea-id="{{ idea.id }}">
+  <div class="flex items-start gap-2">
+    <button hx-post="/m/{{ token }}/ideas/{{ idea.id }}/star" hx-swap="none"
+            class="shrink-0">{{ "★" if idea.starred else "☆" }}</button>
+    <div class="flex-1">
+      <div>{{ idea.text }}</div>
+      <div class="text-xs text-neutral-500 mt-1">{{ idea.display_name }}</div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Idea Jam — moderator{% endblock %}
+{% block body %}
+<header class="border-b border-neutral-200 px-6 py-3 flex items-center gap-4">
+  <h1 class="font-semibold">idea jam · moderator</h1>
+  <span class="text-sm text-neutral-500"><span id="idea-count">{{ ideas|length }}</span> submissions</span>
+  <div class="ml-auto flex gap-2">
+    <button hx-post="/m/{{ token }}/auto-cluster" hx-swap="none"
+            class="px-3 py-1 text-sm bg-neutral-900 text-white rounded">auto-cluster</button>
+    <a href="/m/{{ token }}/reveal" target="_blank"
+       class="px-3 py-1 text-sm border border-neutral-300 rounded">reveal &rarr;</a>
+    <button hx-post="/m/{{ token }}/end-event" hx-swap="none" hx-confirm="End event and generate packages?"
+            class="px-3 py-1 text-sm border border-rose-300 text-rose-700 rounded">end event</button>
+  </div>
+</header>
+
+<main class="flex h-[calc(100vh-3.5rem)]">
+  <aside class="w-[30%] border-r border-neutral-200 overflow-y-auto p-3 space-y-2" id="feed">
+    {% for idea in ideas %}
+      {% include "partials/submission_feed_item.html" %}
+    {% endfor %}
+  </aside>
+
+  <section class="flex-1 overflow-x-auto p-3" id="theme-board">
+    <div class="flex gap-3 h-full" id="theme-row">
+      {% set unclustered = ideas | selectattr("theme_id", "none") | list %}
+      <div class="w-72 shrink-0 border border-neutral-200 rounded flex flex-col"
+           data-theme-id="" >
+        <div class="p-2 border-b border-neutral-200 font-medium text-sm">unclustered</div>
+        <div class="flex-1 p-2 space-y-2 sortable" data-theme-id="">
+          {% for idea in unclustered %}
+            {% include "partials/idea_card.html" %}
+          {% endfor %}
+        </div>
+      </div>
+
+      {% for theme in themes %}
+        {% set theme_ideas = ideas | selectattr("theme_id", "equalto", theme.id) | list %}
+        {% include "partials/theme_column.html" %}
+      {% endfor %}
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  // Wire SortableJS to all sortable lists for drag-and-drop.
+  function wireSortables() {
+    document.querySelectorAll(".sortable").forEach(el => {
+      if (el.__sortable) return;
+      el.__sortable = new Sortable(el, {
+        group: "ideas",
+        animation: 100,
+        onEnd: evt => {
+          const themeId = evt.to.dataset.themeId || "";
+          const ideaId = evt.item.dataset.ideaId;
+          const position = evt.newIndex;
+          fetch(`/m/{{ token }}/ideas/${ideaId}/move`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({theme_id: themeId || null, position}),
+          });
+        },
+      });
+    });
+  }
+  wireSortables();
+  document.addEventListener("htmx:afterSwap", wireSortables);
+
+  // SSE
+  const es = new EventSource(`/m/{{ token }}/events`);
+  es.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === "new_idea" || msg.type === "themes_changed") {
+      // Easy mode: just refetch the page body via HTMX
+      htmx.ajax("GET", window.location.pathname + "?partial=1", {target: "body", swap: "innerHTML"});
+    }
+  };
+})();
+</script>
+{% endblock %}

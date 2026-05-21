@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}reveal{% endblock %}
+{% block body %}
+<main class="min-h-screen flex flex-col items-center justify-center px-12 py-12">
+  {% if themes %}
+    <div class="text-sm text-neutral-400 fixed top-4 left-4" id="page-indicator"></div>
+    <div id="reveal-root" class="w-full max-w-4xl"></div>
+  {% else %}
+    <p class="text-neutral-500">no themes yet.</p>
+  {% endif %}
+</main>
+<script>
+  const themes = {{ themes_json | safe }};
+  let idx = 0;
+  function render() {
+    const t = themes[idx];
+    const root = document.getElementById("reveal-root");
+    root.innerHTML = `
+      <h1 class="text-6xl font-semibold mb-12 text-center">${t.name}</h1>
+      <ul class="space-y-4 text-2xl">
+        ${t.ideas.map(i => `<li><span>${i.text}</span> <span class="text-neutral-400 text-base ml-2">${i.display_name}</span></li>`).join("")}
+      </ul>
+    `;
+    document.getElementById("page-indicator").textContent = `${idx + 1}/${themes.length}`;
+  }
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight" || e.key === " ") { idx = Math.min(idx + 1, themes.length - 1); render(); }
+    else if (e.key === "ArrowLeft") { idx = Math.max(idx - 1, 0); render(); }
+    else if (e.key === "f" || e.key === "F") { document.documentElement.requestFullscreen?.(); }
+  });
+  if (themes.length) render();
+</script>
+{% endblock %}

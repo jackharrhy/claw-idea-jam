@@ -1,0 +1,15 @@
+<div class="w-72 shrink-0 border border-neutral-200 rounded flex flex-col" data-theme-id="{{ theme.id }}">
+  <div class="p-2 border-b border-neutral-200 flex items-center gap-2">
+    <input class="flex-1 text-sm font-medium bg-transparent" value="{{ theme.name }}"
+           hx-patch="/m/{{ token }}/themes/{{ theme.id }}" hx-trigger="change"
+           hx-swap="none" name="name" />
+    <button hx-delete="/m/{{ token }}/themes/{{ theme.id }}" hx-swap="none"
+            hx-confirm="Delete theme? Ideas become unclustered."
+            class="text-xs text-rose-600">×</button>
+  </div>
+  <div class="flex-1 p-2 space-y-2 sortable" data-theme-id="{{ theme.id }}">
+    {% for idea in theme_ideas %}
+      {% include "partials/idea_card.html" %}
+    {% endfor %}
+  </div>
+</div>

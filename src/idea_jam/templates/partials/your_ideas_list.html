@@ -1,0 +1,12 @@
+<ul id="your-ideas" class="space-y-2">
+  {% if ideas %}
+    {% for idea in ideas %}
+      <li class="border border-neutral-200 rounded p-3 text-sm">{{ idea.text }}</li>
+    {% endfor %}
+    {% if ideas|length >= 5 %}
+      <li class="text-xs text-neutral-500 italic">plenty for now — let others write too.</li>
+    {% endif %}
+  {% else %}
+    <li class="text-sm text-neutral-400">nothing yet.</li>
+  {% endif %}
+</ul>

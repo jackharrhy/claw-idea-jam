@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Idea Jam — what would you point an agent at?{% endblock %}
+{% block body %}
+<main class="max-w-2xl mx-auto px-6 py-10">
+
+  {% if event_ended %}
+  <a href="/package" class="block mb-8 p-4 rounded bg-emerald-50 border border-emerald-300 text-emerald-900 hover:bg-emerald-100">
+    Your Claw package is ready &rarr;
+  </a>
+  {% endif %}
+
+  <h1 class="text-3xl font-semibold mb-2">what would you point an agent at?</h1>
+  <p class="text-neutral-600 mb-8">In your life or work. Anything. Be specific.</p>
+
+  <form hx-post="/ideas" hx-target="#your-ideas" hx-swap="outerHTML" class="space-y-3">
+    <textarea name="text" rows="3" maxlength="500" required
+      class="w-full border border-neutral-300 rounded p-3 text-base focus:outline-none focus:ring focus:ring-neutral-400"
+      placeholder="An agent that..."></textarea>
+    <div class="flex justify-between items-center text-sm">
+      <span class="text-neutral-500">
+        you are
+        <span id="display-name" class="font-mono">{{ participant.display_name }}</span>
+        <button hx-post="/me/regenerate-name" hx-target="#display-name" hx-swap="innerHTML"
+                class="underline ml-1">regenerate</button>
+      </span>
+      <button class="px-4 py-2 bg-neutral-900 text-white rounded">submit</button>
+    </div>
+  </form>
+
+  <section class="mt-10">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-2">your ideas so far</h2>
+    {% include "partials/your_ideas_list.html" %}
+  </section>
+</main>
+{% endblock %}

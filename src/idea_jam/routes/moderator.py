@@ -1,0 +1,147 @@
+import asyncio
+import json
+
+from fastapi import APIRouter, Body, Path, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from sse_starlette.sse import EventSourceResponse
+
+from idea_jam import repo
+from idea_jam.auth import require_moderator
+from idea_jam.events import bus, event_stream
+
+router = APIRouter(prefix="/m/{token}")
+
+
+def _auth(token: str) -> None:
+    require_moderator(token)
+
+
+@router.get("", response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse)
+async def dashboard(request: Request, token: str = Path(...)):
+    _auth(token)
+    ideas = repo.list_ideas_with_participant_name()
+    themes = repo.list_themes()
+    return request.app.state.templates.TemplateResponse(
+        request,
+        "moderator_dashboard.html",
+        {"ideas": ideas, "themes": themes, "token": token},
+    )
+
+
+@router.get("/events")
+async def events(request: Request, token: str = Path(...)):
+    _auth(token)
+    q = bus.subscribe()
+    return EventSourceResponse(event_stream(q))
+
+
+@router.post("/themes")
+async def create_theme(request: Request, token: str = Path(...), payload: dict = Body(...)):
+    _auth(token)
+    t = repo.create_theme(payload["name"])
+    await bus.publish("themes_changed", {})
+    return JSONResponse(t)
+
+
+@router.patch("/themes/{theme_id}")
+async def patch_theme(request: Request, token: str = Path(...), theme_id: str = Path(...), payload: dict = Body(...)):
+    _auth(token)
+    if "name" in payload:
+        repo.rename_theme(theme_id, payload["name"])
+    if "position" in payload:
+        repo.reorder_theme(theme_id, int(payload["position"]))
+    await bus.publish("themes_changed", {})
+    return {"ok": True}
+
+
+@router.delete("/themes/{theme_id}")
+async def delete_theme(request: Request, token: str = Path(...), theme_id: str = Path(...)):
+    _auth(token)
+    repo.delete_theme(theme_id)
+    await bus.publish("themes_changed", {})
+    return {"ok": True}
+
+
+@router.post("/ideas/{idea_id}/move")
+async def move_idea(request: Request, token: str = Path(...), idea_id: str = Path(...), payload: dict = Body(...)):
+    _auth(token)
+    theme_id = payload.get("theme_id") or None
+    pos = payload.get("position")
+    repo.move_idea(idea_id, theme_id, int(pos) if pos is not None else None)
+    await bus.publish("themes_changed", {})
+    return {"ok": True}
+
+
+@router.post("/ideas/{idea_id}/star")
+async def star(request: Request, token: str = Path(...), idea_id: str = Path(...)):
+    _auth(token)
+    new = repo.toggle_star(idea_id)
+    await bus.publish("themes_changed", {})
+    return {"starred": new}
+
+
+@router.post("/auto-cluster")
+async def auto_cluster(request: Request, token: str = Path(...)):
+    _auth(token)
+    llm = request.app.state.llm
+    all_ideas = repo.list_all_ideas()
+    unclustered = [i for i in all_ideas if i["theme_id"] is None]
+    if not unclustered:
+        return {"ok": True, "themes_created": 0}
+    proposed = await llm.cluster(unclustered)
+    created = 0
+    for theme in proposed:
+        t = repo.create_theme(theme["name"])
+        created += 1
+        for pos, iid in enumerate(theme["idea_ids"]):
+            repo.move_idea(iid, t["id"], pos)
+    await bus.publish("themes_changed", {})
+    return {"ok": True, "themes_created": created}
+
+
+@router.post("/end-event")
+async def end_event(request: Request, token: str = Path(...)):
+    _auth(token)
+    repo.end_event()
+    repo.set_packages_status("generating")
+    await bus.publish("event_ended", {})
+    asyncio.create_task(_generate_packages(request.app.state.llm))
+    return {"ok": True}
+
+
+async def _generate_packages(llm) -> None:
+    all_ideas = repo.list_all_ideas()
+    sem = asyncio.Semaphore(5)
+
+    async def one(idea):
+        async with sem:
+            try:
+                prompt = await llm.starter_prompt(idea["text"])
+                repo.set_starter_prompt(idea["id"], prompt)
+            except Exception as e:
+                repo.set_starter_prompt(idea["id"], f"(generation failed: {e})")
+
+    await asyncio.gather(*(one(i) for i in all_ideas))
+    repo.set_packages_status("complete")
+    await bus.publish("packages_complete", {})
+
+
+@router.get("/reveal", response_class=HTMLResponse)
+async def reveal(request: Request, token: str = Path(...)):
+    _auth(token)
+    themes = repo.list_themes()
+    all_ideas = repo.list_ideas_with_participant_name()
+    by_theme = []
+    for t in themes:
+        starred = [i for i in all_ideas if i["theme_id"] == t["id"] and i["starred"]]
+        by_theme.append({
+            "id": t["id"],
+            "name": t["name"],
+            "ideas": [{"text": i["text"], "display_name": i["display_name"]} for i in starred],
+        })
+    return request.app.state.templates.TemplateResponse(
+        request,
+        "moderator_reveal.html",
+        {"themes": by_theme, "themes_json": json.dumps(by_theme), "token": token},
+    )

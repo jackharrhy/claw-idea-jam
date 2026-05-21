@@ -90,6 +90,45 @@ async def submit_idea(request: Request, text: str = Form(...)):
     )
 
 
+@router.delete("/ideas/{idea_id}", response_class=HTMLResponse)
+async def delete_own_idea(request: Request, idea_id: str):
+    pid = request.cookies.get(COOKIE_NAME)
+    if not pid:
+        raise HTTPException(404)
+    existing = repo.get_idea(idea_id)
+    if not existing or existing["participant_id"] != pid:
+        raise HTTPException(404)
+    repo.delete_idea(idea_id)
+    await bus.publish("idea_deleted", {"id": idea_id})
+    ideas = repo.list_ideas_for_participant(pid)
+    return request.app.state.templates.TemplateResponse(
+        request,
+        "partials/your_ideas_list.html",
+        {"ideas": ideas},
+    )
+
+
+@router.post("/ideas/{idea_id}/edit", response_class=HTMLResponse)
+async def edit_own_idea(request: Request, idea_id: str, text: str = Form(...)):
+    pid = request.cookies.get(COOKIE_NAME)
+    if not pid:
+        raise HTTPException(404)
+    existing = repo.get_idea(idea_id)
+    if not existing or existing["participant_id"] != pid:
+        raise HTTPException(404)
+    new_text = text.strip()[:500]
+    if not new_text:
+        raise HTTPException(400, detail="empty text")
+    repo.update_idea_text(idea_id, new_text)
+    await bus.publish("idea_edited", {"id": idea_id})
+    ideas = repo.list_ideas_for_participant(pid)
+    return request.app.state.templates.TemplateResponse(
+        request,
+        "partials/your_ideas_list.html",
+        {"ideas": ideas},
+    )
+
+
 @router.post("/me/regenerate-name", response_class=HTMLResponse)
 async def regen_name(request: Request):
     p, is_new = _get_participant_for_request(request)

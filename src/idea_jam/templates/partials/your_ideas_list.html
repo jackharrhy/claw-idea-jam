@@ -1,7 +1,26 @@
 <ul id="your-ideas" class="space-y-2">
   {% if ideas %}
     {% for idea in ideas %}
-      <li class="border border-neutral-200 rounded p-3 text-sm">{{ idea.text }}</li>
+      <li class="border border-neutral-200 rounded p-3 text-sm" id="idea-{{ idea.id }}">
+        <div class="flex items-start gap-2">
+          <span class="flex-1" data-idea-text>{{ idea.text }}</span>
+          <button class="text-xs text-neutral-500 underline"
+                  onclick="document.getElementById('edit-{{ idea.id }}').classList.toggle('hidden')">edit</button>
+          <button class="text-xs text-rose-600 underline"
+                  hx-delete="/ideas/{{ idea.id }}"
+                  hx-target="#your-ideas"
+                  hx-swap="outerHTML"
+                  hx-confirm="delete this idea?">delete</button>
+        </div>
+        <form class="hidden mt-2 space-y-2" id="edit-{{ idea.id }}"
+              hx-post="/ideas/{{ idea.id }}/edit"
+              hx-target="#your-ideas"
+              hx-swap="outerHTML">
+          <textarea name="text" rows="2" maxlength="500" required
+                    class="w-full border border-neutral-300 rounded p-2 text-sm">{{ idea.text }}</textarea>
+          <button class="px-3 py-1 text-xs bg-neutral-900 text-white rounded">save</button>
+        </form>
+      </li>
     {% endfor %}
     {% if ideas|length >= 5 %}
       <li class="text-xs text-neutral-500 italic">plenty for now — let others write too.</li>

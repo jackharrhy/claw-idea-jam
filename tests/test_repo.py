@@ -83,3 +83,18 @@ def test_event_state_singleton_and_end(repo):
     s2 = repo.get_event_state()
     assert s2["ended"] is True
     assert s2["packages_status"] == "generating"
+
+
+def test_delete_idea(repo):
+    p = repo.create_participant()
+    i = repo.add_idea(p["id"], "to delete")
+    repo.delete_idea(i["id"])
+    assert repo.get_idea(i["id"]) is None
+
+
+def test_update_idea_text(repo):
+    p = repo.create_participant()
+    i = repo.add_idea(p["id"], "original")
+    repo.update_idea_text(i["id"], "revised")
+    fetched = repo.get_idea(i["id"])
+    assert fetched["text"] == "revised"

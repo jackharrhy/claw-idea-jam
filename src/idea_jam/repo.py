@@ -56,6 +56,22 @@ def add_idea(participant_id: str, text: str) -> dict:
     return dict(row._mapping)
 
 
+def get_idea(idea_id: str) -> dict | None:
+    with engine.begin() as conn:
+        row = conn.execute(ideas.select().where(ideas.c.id == idea_id)).first()
+    return dict(row._mapping) if row else None
+
+
+def delete_idea(idea_id: str) -> None:
+    with engine.begin() as conn:
+        conn.execute(delete(ideas).where(ideas.c.id == idea_id))
+
+
+def update_idea_text(idea_id: str, text: str) -> None:
+    with engine.begin() as conn:
+        conn.execute(update(ideas).where(ideas.c.id == idea_id).values(text=text))
+
+
 def list_ideas_for_participant(participant_id: str) -> list[dict]:
     with engine.begin() as conn:
         rows = conn.execute(

@@ -118,3 +118,49 @@ def test_random_name_creates_participant(client):
     r = client.post("/me/random-name", follow_redirects=False)
     assert r.status_code == 303
     assert client.cookies.get("ij_pid")
+
+
+def test_delete_own_idea(client):
+    client.cookies.clear()
+    client.post("/me/claim-name", data={"display_name": "deleter"}, follow_redirects=False)
+    r = client.post("/ideas", data={"text": "idea to delete"})
+    assert r.status_code == 200
+    # Get the idea id from the database
+    from idea_jam import repo
+    pid = client.cookies.get("ij_pid")
+    ideas = repo.list_ideas_for_participant(pid)
+    assert len(ideas) == 1
+    iid = ideas[0]["id"]
+    r = client.delete(f"/ideas/{iid}")
+    assert r.status_code == 200
+    assert repo.list_ideas_for_participant(pid) == []
+
+
+def test_edit_own_idea(client):
+    client.cookies.clear()
+    client.post("/me/claim-name", data={"display_name": "editor"}, follow_redirects=False)
+    client.post("/ideas", data={"text": "original text"})
+    from idea_jam import repo
+    pid = client.cookies.get("ij_pid")
+    iid = repo.list_ideas_for_participant(pid)[0]["id"]
+    r = client.post(f"/ideas/{iid}/edit", data={"text": "revised text"})
+    assert r.status_code == 200
+    updated = repo.get_idea(iid)
+    assert updated["text"] == "revised text"
+
+
+def test_cannot_delete_others_ideas(client):
+    client.cookies.clear()
+    # Attendee 1 creates an idea
+    client.post("/me/claim-name", data={"display_name": "alice"}, follow_redirects=False)
+    client.post("/ideas", data={"text": "alice's idea"})
+    from idea_jam import repo
+    a1_pid = client.cookies.get("ij_pid")
+    iid = repo.list_ideas_for_participant(a1_pid)[0]["id"]
+    # Attendee 2 tries to delete it
+    client.cookies.clear()
+    client.post("/me/claim-name", data={"display_name": "mallory"}, follow_redirects=False)
+    r = client.delete(f"/ideas/{iid}")
+    assert r.status_code == 404
+    # Confirm the idea still exists
+    assert repo.get_idea(iid) is not None

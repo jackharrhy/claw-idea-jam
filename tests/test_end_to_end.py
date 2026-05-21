@@ -24,9 +24,9 @@ def client(tmp_path, monkeypatch):
 
 
 def test_full_flow(client):
-    # Attendee 1 lands, gets a cookie
-    r = client.get("/")
-    assert r.status_code == 200
+    # Attendee 1 takes a random name and gets a cookie
+    r = client.post("/me/random-name", follow_redirects=False)
+    assert r.status_code == 303
     a1_cookie = client.cookies.get("ij_pid")
     assert a1_cookie
 
@@ -38,8 +38,8 @@ def test_full_flow(client):
 
     # Attendee 2 (fresh client cookies)
     client.cookies.clear()
-    r = client.get("/")
-    assert r.status_code == 200
+    r = client.post("/me/random-name", follow_redirects=False)
+    assert r.status_code == 303
     r = client.post("/ideas", data={"text": "watch my deploys and alert me"})
     assert r.status_code == 200
 
@@ -81,3 +81,31 @@ def test_full_flow(client):
     r = client.get("/package")
     assert r.status_code == 200
     assert "watch my deploys and alert me" in r.text
+
+
+def test_first_visit_shows_name_entry(client):
+    client.cookies.clear()
+    r = client.get("/")
+    assert r.status_code == 200
+    assert "welcome to the jam" in r.text.lower() or "pick a name" in r.text.lower()
+    # Should NOT have created a participant yet
+    assert client.cookies.get("ij_pid") is None
+
+
+def test_claim_name_creates_participant(client):
+    client.cookies.clear()
+    r = client.post("/me/claim-name", data={"display_name": "alice"}, follow_redirects=False)
+    assert r.status_code == 303
+    pid = client.cookies.get("ij_pid")
+    assert pid
+    # Verify the home page now shows
+    r = client.get("/")
+    assert r.status_code == 200
+    assert "alice" in r.text
+
+
+def test_random_name_creates_participant(client):
+    client.cookies.clear()
+    r = client.post("/me/random-name", follow_redirects=False)
+    assert r.status_code == 303
+    assert client.cookies.get("ij_pid")

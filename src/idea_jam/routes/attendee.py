@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 from idea_jam import repo
 from idea_jam.auth import COOKIE_NAME, COOKIE_MAX_AGE
 from idea_jam.events import bus
+from idea_jam.names import generate_display_name
 
 router = APIRouter()
 
@@ -25,35 +26,68 @@ def _set_cookie_if_new(response, participant: dict, is_new: bool) -> None:
         )
 
 
+def _set_participant_cookie(response, participant: dict) -> None:
+    response.set_cookie(
+        key=COOKIE_NAME, value=participant["id"],
+        httponly=True, samesite="lax", max_age=COOKIE_MAX_AGE,
+    )
+
+
 @router.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    p, is_new = _get_participant_for_request(request)
+    pid = request.cookies.get(COOKIE_NAME)
+    p = repo.get_participant(pid) if pid else None
+    if not p:
+        # No cookie or stale cookie -> show name entry screen, do NOT create.
+        return request.app.state.templates.TemplateResponse(
+            request,
+            "attendee_name_entry.html",
+            {},
+        )
     ideas = repo.list_ideas_for_participant(p["id"])
     event_state = repo.get_event_state()
-    page = request.app.state.templates.TemplateResponse(
+    return request.app.state.templates.TemplateResponse(
         request,
         "attendee_home.html",
         {"participant": p, "ideas": ideas, "event_ended": event_state["ended"]},
     )
-    _set_cookie_if_new(page, p, is_new)
-    return page
+
+
+@router.post("/me/claim-name")
+async def claim_name(request: Request, display_name: str = Form(...)):
+    name = display_name.strip()[:64]
+    if not name:
+        name = generate_display_name()
+    p = repo.create_participant_with_name(name)
+    resp = RedirectResponse("/", status_code=303)
+    _set_participant_cookie(resp, p)
+    return resp
+
+
+@router.post("/me/random-name")
+async def random_name(request: Request):
+    p = repo.create_participant()
+    resp = RedirectResponse("/", status_code=303)
+    _set_participant_cookie(resp, p)
+    return resp
 
 
 @router.post("/ideas", response_class=HTMLResponse)
 async def submit_idea(request: Request, text: str = Form(...)):
-    p, is_new = _get_participant_for_request(request)
+    pid = request.cookies.get(COOKIE_NAME)
+    p = repo.get_participant(pid) if pid else None
+    if not p:
+        raise HTTPException(status_code=400, detail="no participant cookie; visit / first")
     text = text.strip()
     if text:
         idea = repo.add_idea(p["id"], text[:500])
         await bus.publish("new_idea", {"id": idea["id"]})
     ideas = repo.list_ideas_for_participant(p["id"])
-    page = request.app.state.templates.TemplateResponse(
+    return request.app.state.templates.TemplateResponse(
         request,
         "partials/your_ideas_list.html",
         {"ideas": ideas},
     )
-    _set_cookie_if_new(page, p, is_new)
-    return page
 
 
 @router.post("/me/regenerate-name", response_class=HTMLResponse)

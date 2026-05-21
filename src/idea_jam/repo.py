@@ -18,6 +18,13 @@ def create_participant() -> dict:
     return {"id": pid, "display_name": name}
 
 
+def create_participant_with_name(name: str) -> dict:
+    pid = new_uuid()
+    with engine.begin() as conn:
+        conn.execute(participants.insert().values(id=pid, display_name=name, created_at=_now()))
+    return {"id": pid, "display_name": name}
+
+
 def get_participant(pid: str) -> dict | None:
     with engine.begin() as conn:
         row = conn.execute(participants.select().where(participants.c.id == pid)).first()

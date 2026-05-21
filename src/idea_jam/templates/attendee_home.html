@@ -19,9 +19,9 @@
     <div class="flex justify-between items-center text-sm">
       <span class="text-neutral-500">
         you are
-        <span id="display-name" class="font-mono">{{ participant.display_name }}</span>
-        <button hx-post="/me/regenerate-name" hx-target="#display-name" hx-swap="innerHTML"
-                class="underline ml-1">regenerate</button>
+        <input type="text" name="display_name" value="{{ participant.display_name }}" maxlength="64"
+               hx-post="/me/rename" hx-trigger="change" hx-swap="none"
+               class="font-mono inline-block bg-transparent border-b border-transparent hover:border-neutral-300 focus:border-neutral-400 focus:outline-none" />
       </span>
       <button class="px-4 py-2 bg-neutral-900 text-white rounded">submit</button>
     </div>
